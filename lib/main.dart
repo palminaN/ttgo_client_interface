@@ -3,7 +3,8 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-//import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 import 'api_client.dart';
 import 'firestore_service.dart';
@@ -14,8 +15,8 @@ import 'firestore_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  //await Firebase.initializeApp();
-  runApp(const TTGODashboardApp());
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runApp(TTGODashboardApp());
 }
 
 class TTGODashboardApp extends StatelessWidget {
@@ -31,10 +32,7 @@ class TTGODashboardApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'TTGO Dashboard',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
-      ),
+      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
       home: MainScaffold(apiClient: apiClient),
     );
   }
@@ -58,7 +56,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       SensorsPage(apiClient: widget.apiClient),
       LedControlPage(apiClient: widget.apiClient),
       ThresholdsPage(apiClient: widget.apiClient),
-      //StatsPage(apiClient: widget.apiClient),
+      StatsPage(apiClient: widget.apiClient),
     ];
 
     return Scaffold(
@@ -71,18 +69,12 @@ class _MainScaffoldState extends State<MainScaffold> {
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.sensors),
-            label: 'Capteurs',
-          ),
+          NavigationDestination(icon: Icon(Icons.sensors), label: 'Capteurs'),
           NavigationDestination(
             icon: Icon(Icons.lightbulb),
             label: 'LED & Couleurs',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.tune),
-            label: 'Seuils',
-          ),
+          NavigationDestination(icon: Icon(Icons.tune), label: 'Seuils'),
           NavigationDestination(
             icon: Icon(Icons.analytics),
             label: 'Statistiques',
@@ -145,9 +137,7 @@ class _SensorsPageState extends State<SensorsPage> {
           if (snapshot.hasError) {
             return ListView(
               padding: const EdgeInsets.all(16),
-              children: [
-                Text('Erreur: ${snapshot.error}'),
-              ],
+              children: [Text('Erreur: ${snapshot.error}')],
             );
           }
 
@@ -157,8 +147,9 @@ class _SensorsPageState extends State<SensorsPage> {
             'light': data.light,
             'ledIndicatorOn': data.ledIndicatorOn,
           });
-          final prettyJson =
-          const JsonEncoder.withIndent('  ').convert(jsonDecode(jsonRaw));
+          final prettyJson = const JsonEncoder.withIndent(
+            '  ',
+          ).convert(jsonDecode(jsonRaw));
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -188,9 +179,7 @@ class _SensorsPageState extends State<SensorsPage> {
                           const SizedBox(width: 8),
                           Chip(
                             avatar: const Icon(Icons.light_mode),
-                            label: Text(
-                              '${data.light.toStringAsFixed(1)} %',
-                            ),
+                            label: Text('${data.light.toStringAsFixed(1)} %'),
                           ),
                           const Spacer(),
                           Icon(
@@ -306,8 +295,9 @@ class _LedControlPageState extends State<LedControlPage> {
       await widget.apiClient.setBlueLinkedToLight(value);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     }
   }
@@ -318,8 +308,9 @@ class _LedControlPageState extends State<LedControlPage> {
       await widget.apiClient.setRedLinkedToTemp(value);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     }
   }
@@ -364,8 +355,9 @@ class _LedControlPageState extends State<LedControlPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     }
   }
@@ -383,23 +375,15 @@ class _LedControlPageState extends State<LedControlPage> {
               ListTile(
                 leading: const Icon(Icons.light_mode),
                 title: const Text('Lien LED bleue / lumière'),
-                subtitle:
-                const Text('Active le mode auto sur la lumière'),
-                trailing: Switch(
-                  value: _blueLinked,
-                  onChanged: _toggleBlue,
-                ),
+                subtitle: const Text('Active le mode auto sur la lumière'),
+                trailing: Switch(value: _blueLinked, onChanged: _toggleBlue),
               ),
               const Divider(height: 0),
               ListTile(
                 leading: const Icon(Icons.thermostat),
                 title: const Text('Lien LED rouge / température'),
-                subtitle:
-                const Text('Active le mode auto sur la température'),
-                trailing: Switch(
-                  value: _redLinked,
-                  onChanged: _toggleRed,
-                ),
+                subtitle: const Text('Active le mode auto sur la température'),
+                trailing: Switch(value: _redLinked, onChanged: _toggleRed),
               ),
             ],
           ),
@@ -413,10 +397,7 @@ class _LedControlPageState extends State<LedControlPage> {
               children: [
                 const Text(
                   'Roue de couleur LED RGB',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 Center(
@@ -428,12 +409,7 @@ class _LedControlPageState extends State<LedControlPage> {
                       gradient: SweepGradient(
                         colors: List.generate(
                           13,
-                              (i) => HSVColor.fromAHSV(
-                            1,
-                            i * 30.0,
-                            1,
-                            1,
-                          ).toColor(),
+                          (i) => HSVColor.fromAHSV(1, i * 30.0, 1, 1).toColor(),
                         ),
                       ),
                     ),
@@ -466,8 +442,8 @@ class _LedControlPageState extends State<LedControlPage> {
                 const SizedBox(height: 8),
                 const Text(
                   'Pour l’instant, la couleur est approximée vers R/G/B '
-                      'selon la composante dominante (en attendant une route '
-                      '/api/ledrgb/color complète côté ESP).',
+                  'selon la composante dominante (en attendant une route '
+                  '/api/ledrgb/color complète côté ESP).',
                   style: TextStyle(fontSize: 12),
                 ),
               ],
@@ -536,14 +512,15 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
       // await widget.apiClient.updateThresholdsToApi(t);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Seuils enregistrés')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Seuils enregistrés')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -583,9 +560,7 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
-            Text(
-              'Seuil lumière : ${_light!.toStringAsFixed(1)} %',
-            ),
+            Text('Seuil lumière : ${_light!.toStringAsFixed(1)} %'),
             Slider(
               min: 0,
               max: 100,
@@ -600,7 +575,7 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
             const SizedBox(height: 8),
             Text(
               'Froid en-dessous de ${_tempCold!.toStringAsFixed(1)} °C,\n'
-                  'Chaud au-dessus de ${_tempHot!.toStringAsFixed(1)} °C',
+              'Chaud au-dessus de ${_tempHot!.toStringAsFixed(1)} °C',
             ),
             const SizedBox(height: 8),
             const Text('Seuil froid'),
@@ -626,19 +601,19 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
               onPressed: _saving ? null : _save,
               icon: _saving
                   ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.save),
               label: const Text('Enregistrer'),
             ),
             const SizedBox(height: 16),
             const Text(
               'Ces seuils pourront être utilisés par le firmware ESP32 pour '
-                  'choisir la couleur de la LED RGB (bleu = froid, rouge = chaud, '
-                  'autre couleur entre les deux), et par l’application pour la '
-                  'visualisation et le debug.',
+              'choisir la couleur de la LED RGB (bleu = froid, rouge = chaud, '
+              'autre couleur entre les deux), et par l’application pour la '
+              'visualisation et le debug.',
             ),
           ],
         );
@@ -650,7 +625,7 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
 //
 // Onglet 4 – Statistiques & localisation
 //
-/*
+
 class StatsPage extends StatelessWidget {
   final ApiClient apiClient;
 
@@ -658,10 +633,10 @@ class StatsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    //final fs = FirestoreService.instance;
+    final fs = FirestoreService.instance;
 
     return FutureBuilder<StatsResult>(
-      //future: fs.computeStats(),
+      future: fs.computeStats(),
       builder: (context, statsSnap) {
         if (statsSnap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -671,7 +646,6 @@ class StatsPage extends StatelessWidget {
         }
         final stats = statsSnap.data!;
 
-
         return FutureBuilder<List<SensorLocation>>(
           future: fs.getSensorLocations(),
           builder: (context, locSnap) {
@@ -679,7 +653,9 @@ class StatsPage extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
             if (locSnap.hasError) {
-              return Center(child: Text('Erreur localisation: ${locSnap.error}'));
+              return Center(
+                child: Text('Erreur localisation: ${locSnap.error}'),
+              );
             }
             final locations = locSnap.data ?? [];
 
@@ -701,7 +677,8 @@ class StatsPage extends StatelessWidget {
                         Chip(
                           avatar: const Icon(Icons.storage),
                           label: Text(
-                              'Mesures stockées: ${stats.totalReadings}'),
+                            'Mesures stockées: ${stats.totalReadings}',
+                          ),
                         ),
                         Chip(
                           avatar: const Icon(Icons.thermostat),
@@ -736,8 +713,8 @@ class StatsPage extends StatelessWidget {
                 if (locations.isEmpty)
                   const Text(
                     'Aucun capteur localisé dans Firestore.\n'
-                        'Ajoute des documents dans la collection "sensors" '
-                        'avec sensorId, location, lat, lng, lastSeen.',
+                    'Ajoute des documents dans la collection "sensors" '
+                    'avec sensorId, location, lat, lng, lastSeen.',
                   )
                 else
                   Card(
@@ -748,8 +725,8 @@ class StatsPage extends StatelessWidget {
                           title: Text('${loc.name} (${loc.sensorId})'),
                           subtitle: Text(
                             '${loc.location}\n'
-                                'Coordonnées: ${loc.lat ?? "?"}, ${loc.lng ?? "?"}\n'
-                                'Dernière activité: ${loc.lastSeen ?? "?"}',
+                            'Coordonnées: ${loc.lat ?? "?"}, ${loc.lng ?? "?"}\n'
+                            'Dernière activité: ${loc.lastSeen ?? "?"}',
                           ),
                           isThreeLine: true,
                         );
@@ -764,4 +741,3 @@ class StatsPage extends StatelessWidget {
     );
   }
 }
-*/
