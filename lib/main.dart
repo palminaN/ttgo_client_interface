@@ -1,10 +1,11 @@
 // lib/main.dart
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:async';
 
 import 'package:flutter/material.dart';
-//import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 import 'api_client.dart';
 import 'firestore_service.dart';
@@ -15,8 +16,8 @@ import 'firestore_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  //await Firebase.initializeApp();
-  runApp(const TTGODashboardApp());
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runApp(TTGODashboardApp());
 }
 
 class TTGODashboardApp extends StatelessWidget {
@@ -59,7 +60,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       SensorsPage(apiClient: widget.apiClient),
       LedControlPage(apiClient: widget.apiClient),
       ThresholdsPage(apiClient: widget.apiClient),
-      //StatsPage(apiClient: widget.apiClient),
+      StatsPage(apiClient: widget.apiClient),
     ];
 
     return Scaffold(
@@ -548,7 +549,6 @@ class _LedControlPageState extends State<LedControlPage> {
 // Onglet 3 – Seuils lumière & chaud/froid
 //
 
-
 class ThresholdsPage extends StatefulWidget {
   final ApiClient apiClient;
 
@@ -693,7 +693,7 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
 }
 
 
-/*
+
 //
 // Onglet 4 – Statistiques & localisation
 //
@@ -705,10 +705,10 @@ class StatsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    //final fs = FirestoreService.instance;
+    final fs = FirestoreService.instance;
 
     return FutureBuilder<StatsResult>(
-      //future: fs.computeStats(),
+      future: fs.computeStats(),
       builder: (context, statsSnap) {
         if (statsSnap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -717,7 +717,6 @@ class StatsPage extends StatelessWidget {
           return Center(child: Text('Erreur stats: ${statsSnap.error}'));
         }
         final stats = statsSnap.data!;
-
 
         return FutureBuilder<List<SensorLocation>>(
           future: fs.getSensorLocations(),
@@ -811,5 +810,3 @@ class StatsPage extends StatelessWidget {
     );
   }
 }
-
-*/
