@@ -1,4 +1,5 @@
 // lib/main.dart
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -558,7 +559,7 @@ class ThresholdsPage extends StatefulWidget {
 }
 
 class _ThresholdsPageState extends State<ThresholdsPage> {
-  late Future<Thresholds?> _future;
+  late Future<Thresholds> _future;
   double? _light;
   double? _tempCold;
   double? _tempHot;
