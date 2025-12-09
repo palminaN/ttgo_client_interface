@@ -149,48 +149,47 @@ class ApiClient {
     }
   }
 
-  /// Pour la roue de couleur : on prévoit une future route
-  /// PATCH /api/ledrgb/color avec un JSON { "r": 255, "g": 128, "b": 0 }.
-  /// Si l’API n’est pas encore prête, tu peux mapper la couleur
-  /// vers r/g/b de base avec setLedColorBasic.
   Future<void> setLedColorRgb(int r, int g, int b) async {
-    // TODO: quand vous ajouterez la route côté ESP :
-    // final uri = Uri.parse('$baseUrl/ledrgb/color');
-    // final response = await _client.patch(
-    //   uri,
-    //   headers: {'Content-Type': 'application/json'},
-    //   body: jsonEncode({'r': r, 'g': g, 'b': b}),
-    // );
-    // if (response.statusCode != 200) { ... }
+    final uri = Uri.parse('$baseUrl/ledrgb/color');
+    final response = await _client.patch(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'r': r, 'g': g, 'b': b}),
+    );
 
-    // pour l’instant : approx -> choisir la composante dominante
-    final maxVal = [r, g, b].reduce((a, b) => a > b ? a : b);
-    if (maxVal == r) {
-      await setLedColorBasic('r');
-    } else if (maxVal == g) {
-      await setLedColorBasic('g');
-    } else {
-      await setLedColorBasic('b');
+    if (response.statusCode != 200) {
+      throw Exception(
+          'Erreur changement couleur RGB (${response.statusCode})');
     }
   }
 
+  Future<void> turnOffRgb() async {
+    final uri = Uri.parse('$baseUrl/ledrgb/off');
+    final response = await _client.patch(uri);
+    if (response.statusCode != 200) {
+      throw Exception('Erreur extinction LED RGB (${response.statusCode})');
+    }
+  }
+
+
+
   /// Lier / délier la LED bleue à la lumière.
-  Future<void> setBlueLinkedToLight(bool enable) async {
-    final path = enable ? '/ledrgb/link' : '/ledrgb/unlink';
+  Future<void> setRGBLightMode(bool enable) async {
+    final path = enable ? '/ledrgb/link_light' : '/ledrgb/unlink_light';
     final uri = Uri.parse('$baseUrl$path');
     final response = await _client.patch(uri);
     if (response.statusCode != 200) {
-      throw Exception('Erreur lien bleu/lumière (${response.statusCode})');
+      throw Exception('Erreur lien rgb/lumière (${response.statusCode})');
     }
   }
 
   /// Lier / délier la LED rouge à la température.
-  Future<void> setRedLinkedToTemp(bool enable) async {
+  Future<void> setRGBTempMode(bool enable) async {
     final path = enable ? '/ledrgb/link_temp' : '/ledrgb/unlink_temp';
     final uri = Uri.parse('$baseUrl$path');
     final response = await _client.patch(uri);
     if (response.statusCode != 200) {
-      throw Exception('Erreur lien rouge/temp (${response.statusCode})');
+      throw Exception('Erreur lien rgb/temp (${response.statusCode})');
     }
   }
 

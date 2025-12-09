@@ -1,6 +1,7 @@
 // lib/main.dart
 import 'dart:convert';
 import 'dart:math';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 //import 'package:firebase_core/firebase_core.dart';
@@ -108,179 +109,219 @@ class SensorsPage extends StatefulWidget {
 
 class _SensorsPageState extends State<SensorsPage> {
   late Future<CurrentSensors> _future;
+  Timer? _timer;
+  bool _isFetching = false;
 
   @override
   void initState() {
     super.initState();
     _refresh();
+
+    // Rafraîchit toutes les 1 seconde, mais seulement si on n'est pas déjà
+    // en train de faire une requête.
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_isFetching) return; // on attend que la requête précédente finisse
+      _refresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   void _refresh() {
+    _isFetching = true;
     setState(() {
       _future = widget.apiClient.fetchCurrentSensors().then((data) async {
-        // On enregistre chaque lecture dans Firestore (persistance)
-        //await FirestoreService.instance.logReading(data);
+        // Si tu remets Firestore plus tard :
+        // await FirestoreService.instance.logReading(data);
+        _isFetching = false;
         return data;
+      }).catchError((e) {
+        _isFetching = false;
+        // on relance l'erreur pour que FutureBuilder l'affiche
+        throw e;
       });
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: () async => _refresh(),
-      child: FutureBuilder<CurrentSensors>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return ListView(
-              children: [
-                SizedBox(
-                  height: 200,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              ],
-            );
-          }
-          if (snapshot.hasError) {
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Text('Erreur: ${snapshot.error}'),
-              ],
-            );
-          }
-
-          final data = snapshot.data!;
-          final jsonRaw = jsonEncode({
-            'temperature': data.temperature,
-            'light': data.light,
-            'ledIndicatorOn': data.ledIndicatorOn,
-          });
-          final prettyJson =
-          const JsonEncoder.withIndent('  ').convert(jsonDecode(jsonRaw));
-
+    return FutureBuilder<CurrentSensors>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Valeurs des résistances',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Chip(
-                            avatar: const Icon(Icons.thermostat),
-                            label: Text(
-                              '${data.temperature.toStringAsFixed(1)} °C',
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Chip(
-                            avatar: const Icon(Icons.light_mode),
-                            label: Text(
-                              '${data.light.toStringAsFixed(1)} %',
-                            ),
-                          ),
-                          const Spacer(),
-                          Icon(
-                            Icons.circle,
-                            size: 12,
-                            color: data.ledIndicatorOn
-                                ? Colors.green
-                                : Colors.grey,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            data.ledIndicatorOn ? 'LED ON' : 'LED OFF',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Mini “chart” température (simulation)',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 60,
-                        child: CustomPaint(
-                          painter: _MiniBarPainter(value: data.temperature),
-                          child: Container(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Card(
-                child: ExpansionTile(
-                  title: const Text('Voir JSON brut (pretty)'),
-                  childrenPadding: const EdgeInsets.all(16),
+              Text('Erreur: ${snapshot.error}'),
+            ],
+          );
+        }
+
+        final data = snapshot.data!;
+        final jsonRaw = jsonEncode({
+          'temperature': data.temperature,
+          'light': data.light,
+          'ledIndicatorOn': data.ledIndicatorOn,
+        });
+        final prettyJson =
+        const JsonEncoder.withIndent('  ').convert(jsonDecode(jsonRaw));
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Text(
-                        prettyJson,
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 12,
-                        ),
+                    const Text(
+                      'Valeurs des résistances',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Chip(
+                          avatar: const Icon(Icons.thermostat),
+                          label: Text(
+                            '${data.temperature.toStringAsFixed(1)} °C',
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Chip(
+                          avatar: const Icon(Icons.light_mode),
+                          label: Text(
+                            '${data.light.toStringAsFixed(1)} %',
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.circle,
+                          size: 12,
+                          color: data.ledIndicatorOn
+                              ? Colors.green
+                              : Colors.grey,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          data.ledIndicatorOn ? 'LED ON' : 'LED OFF',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Couleur théorique de la LED RGB (température)',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 60,
+                      child: _TempColorPreview(tempC: data.temperature),
                     ),
                   ],
                 ),
               ),
-            ],
-          );
-        },
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: ExpansionTile(
+                title: const Text('Voir JSON brut (pretty)'),
+                childrenPadding: const EdgeInsets.all(16),
+                children: [
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Text(
+                      prettyJson,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+Color tempToRgbColor(double tempC,
+    {double cold = 18.0, double hot = 26.0}) {
+  if (cold >= hot) {
+    cold = 0;
+    hot = 50;
+  }
+
+  if (tempC <= cold) {
+    // FROID -> BLEU
+    return Colors.blue;
+  } else if (tempC >= hot) {
+    // CHAUD -> ROUGE
+    return Colors.red;
+  } else {
+    // Entre les deux : dégradé bleu -> vert -> rouge
+    final t = (tempC - cold) / (hot - cold); // 0..1
+
+    if (t < 0.5) {
+      // 0..0.5 => bleu -> vert
+      final k = t / 0.5; // 0..1
+      return Color.lerp(Colors.blue, Colors.green, k)!;
+    } else {
+      // 0.5..1 => vert -> rouge
+      final k = (t - 0.5) / 0.5; // 0..1
+      return Color.lerp(Colors.green, Colors.red, k)!;
+    }
+  }
+}
+
+
+class _TempColorPreview extends StatelessWidget {
+  final double tempC;
+
+  const _TempColorPreview({required this.tempC});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = tempToRgbColor(tempC);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: color,
+        border: Border.all(color: Colors.black12),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        '${tempC.toStringAsFixed(1)} °C',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          shadows: [
+            Shadow(offset: Offset(0, 0), blurRadius: 4),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Un tout petit "chart" juste pour avoir un visuel.
-class _MiniBarPainter extends CustomPainter {
-  final double value;
-
-  _MiniBarPainter({required this.value});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.fill
-      ..color = Colors.blue;
-
-    // on mappe -10..60°C à 0..1
-    final clamped = value.clamp(-10, 60);
-    final ratio = (clamped + 10) / 70;
-    final barHeight = size.height * ratio;
-
-    final rect = Rect.fromLTWH(
-      0,
-      size.height - barHeight,
-      size.width,
-      barHeight,
-    );
-    canvas.drawRect(rect, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _MiniBarPainter oldDelegate) =>
-      oldDelegate.value != value;
-}
 
 //
 // Onglet 2 – LED & Couleurs
@@ -296,30 +337,44 @@ class LedControlPage extends StatefulWidget {
 }
 
 class _LedControlPageState extends State<LedControlPage> {
-  bool _blueLinked = false;
-  bool _redLinked = false;
+  bool _rgbLightLinked = false;
+  bool _rgbTempLinked = true; // par défaut, la RGB est liée à la température
   double _hue = 0; // 0..360 pour la roue de couleur
 
   Future<void> _toggleBlue(bool value) async {
-    setState(() => _blueLinked = value);
+    setState(() {
+      _rgbLightLinked = value;
+      if (value) {
+        _rgbTempLinked = false; // exclusif : mode lumière => on coupe mode temp
+      }
+    });
     try {
-      await widget.apiClient.setBlueLinkedToLight(value);
+      await widget.apiClient.setRGBLightMode(value);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        // rollback visuel en cas d'erreur
+        setState(() => _rgbLightLinked = !value);
       }
     }
   }
 
-  Future<void> _toggleRed(bool value) async {
-    setState(() => _redLinked = value);
+  Future<void> _toggleTemp(bool value) async {
+    setState(() {
+      _rgbTempLinked = value;
+      if (value) {
+        _rgbLightLinked = false; // exclusif : mode température => on coupe mode lumière
+      }
+    });
     try {
-      await widget.apiClient.setRedLinkedToTemp(value);
+      await widget.apiClient.setRGBTempMode(value);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        // rollback visuel
+        setState(() => _rgbTempLinked = !value);
       }
     }
   }
@@ -355,6 +410,12 @@ class _LedControlPageState extends State<LedControlPage> {
     final ig = (g * 255).round();
     final ib = (b * 255).round();
 
+    // envoyer une couleur manuelle = sortir des modes auto
+    setState(() {
+      _rgbLightLinked = false;
+      _rgbTempLinked = false;
+    });
+
     try {
       await widget.apiClient.setLedColorRgb(ir, ig, ib);
       if (mounted) {
@@ -370,6 +431,7 @@ class _LedControlPageState extends State<LedControlPage> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     final color = HSVColor.fromAHSV(1, _hue, 1, 1).toColor();
@@ -382,23 +444,26 @@ class _LedControlPageState extends State<LedControlPage> {
             children: [
               ListTile(
                 leading: const Icon(Icons.light_mode),
-                title: const Text('Lien LED bleue / lumière'),
-                subtitle:
-                const Text('Active le mode auto sur la lumière'),
+                title: const Text('Lien LED RGB / lumière'),
+                subtitle: const Text(
+                  'La LED RGB devient bleue plus ou moins forte selon la lumière.\n'
+                      'La LED rouge séparée indique le dépassement de seuil.',
+                ),
                 trailing: Switch(
-                  value: _blueLinked,
+                  value: _rgbLightLinked,
                   onChanged: _toggleBlue,
                 ),
               ),
               const Divider(height: 0),
               ListTile(
                 leading: const Icon(Icons.thermostat),
-                title: const Text('Lien LED rouge / température'),
-                subtitle:
-                const Text('Active le mode auto sur la température'),
+                title: const Text('Lien LED RGB / température'),
+                subtitle: const Text(
+                  'La LED RGB affiche un dégradé froid → chaud en fonction de la température.',
+                ),
                 trailing: Switch(
-                  value: _redLinked,
-                  onChanged: _toggleRed,
+                  value: _rgbTempLinked,
+                  onChanged: _toggleTemp,
                 ),
               ),
             ],
@@ -483,6 +548,7 @@ class _LedControlPageState extends State<LedControlPage> {
 // Onglet 3 – Seuils lumière & chaud/froid
 //
 
+
 class ThresholdsPage extends StatefulWidget {
   final ApiClient apiClient;
 
@@ -493,7 +559,7 @@ class ThresholdsPage extends StatefulWidget {
 }
 
 class _ThresholdsPageState extends State<ThresholdsPage> {
-  late Future<Thresholds?> _future;
+  late Future<Thresholds> _future;
   double? _light;
   double? _tempCold;
   double? _tempHot;
@@ -502,42 +568,30 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
   @override
   void initState() {
     super.initState();
-    _future = _load();
-  }
-
-  Future<Thresholds?> _load() async {
-    // 1) on tente Firestore
-    //final fs = await FirestoreService.instance.getThresholdsFromFirestore();
-    //if (fs != null) return fs;
-
-    // 2) si l’API ESP est prête, tu peux aussi faire :
-    //return await widget.apiClient.fetchThresholdsFromApi();
-
-    // 3) sinon, valeurs par défaut
-    return Thresholds(
-      lightThreshold: 30,
-      tempColdThreshold: 18,
-      tempHotThreshold: 26,
-    );
+    _future = widget.apiClient.fetchThresholdsFromApi();
   }
 
   Future<void> _save() async {
     if (_light == null || _tempCold == null || _tempHot == null) return;
+
     final t = Thresholds(
       lightThreshold: _light!,
       tempColdThreshold: _tempCold!,
       tempHotThreshold: _tempHot!,
     );
+
     setState(() => _saving = true);
     try {
-      // on stocke dans Firestore (pour stats + persistance)
-      //await FirestoreService.instance.saveThresholdsToFirestore(t);
-      // et plus tard, quand tu auras la route ESP :
-      // await widget.apiClient.updateThresholdsToApi(t);
+      final updated = await widget.apiClient.updateThresholdsToApi(t);
+      setState(() {
+        _light = updated.lightThreshold;
+        _tempCold = updated.tempColdThreshold;
+        _tempHot = updated.tempHotThreshold;
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Seuils enregistrés')),
+          const SnackBar(content: Text('Seuils mis à jour sur l\'ESP32')),
         );
       }
     } catch (e) {
@@ -552,7 +606,7 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Thresholds?>(
+    return FutureBuilder<Thresholds>(
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting &&
@@ -568,7 +622,7 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
         _tempCold ??= t?.tempColdThreshold ?? 18;
         _tempHot ??= t?.tempHotThreshold ?? 26;
 
-        // garantie tempCold <= tempHot
+        // sécurité: cold <= hot
         if (_tempCold! > _tempHot!) {
           final mid = (_tempCold! + _tempHot!) / 2;
           _tempCold = mid - 1;
@@ -579,13 +633,11 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
           padding: const EdgeInsets.all(16),
           children: [
             const Text(
-              'Seuils de lumière & chaud/froid',
+              'Seuils de lumière & chaud/froid (ESP32)',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
-            Text(
-              'Seuil lumière : ${_light!.toStringAsFixed(1)} %',
-            ),
+            Text('Seuil lumière : ${_light!.toStringAsFixed(1)} %'),
             Slider(
               min: 0,
               max: 100,
@@ -593,9 +645,9 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
               onChanged: (v) => setState(() => _light = v),
             ),
             const SizedBox(height: 24),
-            Text(
+            const Text(
               'Zone “froid” / “chaud” (température)',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -631,14 +683,7 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
                   : const Icon(Icons.save),
-              label: const Text('Enregistrer'),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Ces seuils pourront être utilisés par le firmware ESP32 pour '
-                  'choisir la couleur de la LED RGB (bleu = froid, rouge = chaud, '
-                  'autre couleur entre les deux), et par l’application pour la '
-                  'visualisation et le debug.',
+              label: const Text('Enregistrer sur l\'ESP32'),
             ),
           ],
         );
@@ -647,10 +692,12 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
   }
 }
 
+
+/*
 //
 // Onglet 4 – Statistiques & localisation
 //
-/*
+
 class StatsPage extends StatelessWidget {
   final ApiClient apiClient;
 
@@ -764,4 +811,5 @@ class StatsPage extends StatelessWidget {
     );
   }
 }
+
 */
