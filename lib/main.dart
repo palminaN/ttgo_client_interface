@@ -10,9 +10,13 @@ import 'firebase_options.dart';
 import 'api_client.dart';
 import 'firestore_service.dart';
 
-// TODO: après avoir fait `flutterfire configure`,
-// importe ton fichier firebase_options.dart ici et utilise
-// DefaultFirebaseOptions.currentPlatform.
+import 'pages/stats_screen.dart';
+import 'pages/leds_screen.dart';
+import 'pages/temps_reel.dart';
+import 'pages/seuils_screen.dart';
+import 'widgets/bottom_nav.dart';
+
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,9 +62,9 @@ class _MainScaffoldState extends State<MainScaffold> {
   Widget build(BuildContext context) {
     final pages = [
       SensorsPage(apiClient: widget.apiClient),
-      LedControlPage(apiClient: widget.apiClient),
+      LedControlScreen(apiClient: widget.apiClient),
       ThresholdsPage(apiClient: widget.apiClient),
-      StatsPage(apiClient: widget.apiClient),
+      StatisticsScreen(apiClient: widget.apiClient),
     ];
 
     return Scaffold(
@@ -69,27 +73,9 @@ class _MainScaffoldState extends State<MainScaffold> {
         centerTitle: true,
       ),
       body: pages[_index],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.sensors),
-            label: 'Capteurs',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.lightbulb),
-            label: 'LED & Couleurs',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.tune),
-            label: 'Seuils',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.analytics),
-            label: 'Statistiques',
-          ),
-        ],
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _index,
+        onTap: (i) => setState(() => _index = i),
       ),
     );
   }
@@ -111,7 +97,9 @@ class SensorsPage extends StatefulWidget {
 class _SensorsPageState extends State<SensorsPage> {
   late Future<CurrentSensors> _future;
   Timer? _timer;
+  late Timer _timer_db;
   bool _isFetching = false;
+  static const int intervalDB = 60;
 
   @override
   void initState() {
@@ -125,6 +113,30 @@ class _SensorsPageState extends State<SensorsPage> {
       if (_isFetching) return; // on attend que la requête précédente finisse
       _refresh();
     });
+
+
+    _timer_db = Timer.periodic(
+      const Duration(seconds: intervalDB),
+          (Timer timer) {
+        registerDB();
+      },
+    );
+
+
+  }
+
+  void registerDB() async {
+
+    if (mounted) {
+      _future = widget.apiClient.fetchCurrentSensors().then((data) async {
+          await FirestoreService.instance.logReading(data);
+        _isFetching = false;
+        return data;
+      }).catchError((e) {
+        _isFetching = false;
+        throw e;
+      });
+    }
   }
 
   @override
@@ -137,13 +149,10 @@ class _SensorsPageState extends State<SensorsPage> {
     _isFetching = true;
     setState(() {
       _future = widget.apiClient.fetchCurrentSensors().then((data) async {
-        // Si tu remets Firestore plus tard :
-        // await FirestoreService.instance.logReading(data);
         _isFetching = false;
         return data;
       }).catchError((e) {
         _isFetching = false;
-        // on relance l'erreur pour que FutureBuilder l'affiche
         throw e;
       });
     });
@@ -168,13 +177,6 @@ class _SensorsPageState extends State<SensorsPage> {
         }
 
         final data = snapshot.data!;
-        final jsonRaw = jsonEncode({
-          'temperature': data.temperature,
-          'light': data.light,
-          'ledIndicatorOn': data.ledIndicatorOn,
-        });
-        final prettyJson =
-        const JsonEncoder.withIndent('  ').convert(jsonDecode(jsonRaw));
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -186,51 +188,49 @@ class _SensorsPageState extends State<SensorsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Valeurs des résistances',
+                      'Donnees de nos capteurs en temps reel',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Chip(
-                          avatar: const Icon(Icons.thermostat),
-                          label: Text(
-                            '${data.temperature.toStringAsFixed(1)} °C',
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Chip(
-                          avatar: const Icon(Icons.light_mode),
-                          label: Text(
-                            '${data.light.toStringAsFixed(1)} %',
-                          ),
-                        ),
-                        const Spacer(),
-                        Icon(
-                          Icons.circle,
-                          size: 12,
-                          color: data.ledIndicatorOn
-                              ? Colors.green
-                              : Colors.grey,
-                        ),
+
+                    SizedBox(height: 50,),
+                    Container(
+                      child: Row(children: [ Text(
+                        'Luminosite : ${data.light.toStringAsFixed(1)} %',
+                      ),
+                        SizedBox(width: 150,),
+                        Container(child: Row(children: [Icon(
+                        Icons.circle,
+                        size: 12,
+                        color: data.ledIndicatorOn
+                            ? Colors.green
+                            : Colors.grey,
+                      ),
                         const SizedBox(width: 4),
                         Text(
                           data.ledIndicatorOn ? 'LED ON' : 'LED OFF',
                           style: const TextStyle(fontSize: 12),
-                        ),
-                      ],
+                        ),],),),],)
+
+
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 50),
+                    Container(
+                      child: Text(
+                        'Temperature : ${data.temperature.toStringAsFixed(1)} °C',
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
                     const Text(
-                      'Couleur théorique de la LED RGB (température)',
+                      'Couleur de led RGB',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
-                      height: 60,
+                      height: 10,
                       child: _TempColorPreview(tempC: data.temperature),
                     ),
                   ],
@@ -238,24 +238,7 @@ class _SensorsPageState extends State<SensorsPage> {
               ),
             ),
             const SizedBox(height: 16),
-            Card(
-              child: ExpansionTile(
-                title: const Text('Voir JSON brut (pretty)'),
-                childrenPadding: const EdgeInsets.all(16),
-                children: [
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Text(
-                      prettyJson,
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+
           ],
         );
       },
@@ -303,22 +286,13 @@ class _TempColorPreview extends StatelessWidget {
     final color = tempToRgbColor(tempC);
 
     return Container(
+      height: 10.0,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
         color: color,
         border: Border.all(color: Colors.black12),
       ),
       alignment: Alignment.center,
-      child: Text(
-        '${tempC.toStringAsFixed(1)} °C',
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          shadows: [
-            Shadow(offset: Offset(0, 0), blurRadius: 4),
-          ],
-        ),
-      ),
+      child: Text("")
     );
   }
 }
@@ -630,33 +604,23 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
         }
 
         return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const Text(
-              'Seuils de lumière & chaud/froid (ESP32)',
+          padding: const EdgeInsets.all(20),
+          children: [Center(
+           child: const Text(
+              'Reglage des seuils',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            Text('Seuil lumière : ${_light!.toStringAsFixed(1)} %'),
-            Slider(
-              min: 0,
-              max: 100,
-              value: _light!,
-              onChanged: (v) => setState(() => _light = v),
-            ),
-            const SizedBox(height: 24),
+            )),
+
+            const SizedBox(height: 48),
             const Text(
-              'Zone “froid” / “chaud” (température)',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              'Seuils de temperature de la thermistance',
+              style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Froid en-dessous de ${_tempCold!.toStringAsFixed(1)} °C,\n'
-                  'Chaud au-dessus de ${_tempHot!.toStringAsFixed(1)} °C',
-            ),
-            const SizedBox(height: 8),
-            const Text('Seuil froid'),
+            const SizedBox(height: 20),
+             Text('Seuil froid : ${_tempCold!.toStringAsFixed(1)} °C,\n',style: TextStyle(fontWeight: FontWeight.bold),),
             Slider(
+              activeColor: Colors.black,
+              inactiveColor: Colors.black,
               min: -10,
               max: 40,
               value: _tempCold!,
@@ -664,8 +628,11 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
                 _tempCold = min(v, _tempHot! - 0.5);
               }),
             ),
-            const Text('Seuil chaud'),
+             Text('Seuil chaud : ${_tempHot!.toStringAsFixed(1)} °C',style:TextStyle(fontWeight: FontWeight.bold),),
+
             Slider(
+              activeColor: Colors.black,
+              inactiveColor: Colors.black,
               min: -10,
               max: 60,
               value: _tempHot!,
@@ -673,17 +640,30 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
                 _tempHot = max(v, _tempCold! + 0.5);
               }),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 48),
+            Text('Seuil de luminosité de la photoresistance : ${_light!.toStringAsFixed(1)} %',style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold),),
+            const SizedBox(height: 24),
+            Slider(
+              activeColor: Colors.black,
+              inactiveColor: Colors.black,
+              min: 0,
+              max: 100,
+              value: _light!,
+              onChanged: (v) => setState(() => _light = v),
+            ),
+            const SizedBox(height: 72,),
             FilledButton.icon(
+              style:ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadiusGeometry.all(Radius.zero),
+                ),
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.black,
+                minimumSize: const Size(120, 40),
+              ),
               onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-                  : const Icon(Icons.save),
-              label: const Text('Enregistrer sur l\'ESP32'),
+
+              label: const Text('Valider'),
             ),
           ],
         );

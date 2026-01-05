@@ -15,6 +15,18 @@ class CurrentSensors {
   });
 }
 
+class RgbStatus {
+  final bool lightLinked;
+  final bool tempLinked;
+  final String mode; // "manual" | "light" | "temp"
+
+  RgbStatus({
+    required this.lightLinked,
+    required this.tempLinked,
+    required this.mode,
+  });
+}
+
 /// Seuils utilisés par le firmware (lumière + froid/chaud).
 class Thresholds {
   final double lightThreshold;
@@ -46,6 +58,52 @@ class Thresholds {
 class ApiClient {
   final String baseUrl;
   final http.Client _client;
+
+  Future<RgbStatus> fetchRgbStatus() async {
+    final uri = Uri.parse('$baseUrl/sensors');
+    final response = await _client.get(uri);
+
+    if (response.statusCode != 200) {
+      throw Exception('Erreur /api/sensors (${response.statusCode})');
+    }
+
+    final Map<String, dynamic> data =
+    jsonDecode(response.body) as Map<String, dynamic>;
+    final List<dynamic> sensors = data['sensors'] as List<dynamic>;
+
+    bool lightLinked = false;
+    bool tempLinked = false;
+    String mode = 'manual';
+
+    for (final s in sensors) {
+      final obj = s as Map<String, dynamic>;
+      final id = obj['id']?.toString();
+      if (id == 'rgb_led') {
+        lightLinked = obj['light_linked'] == true;
+        tempLinked  = obj['temp_linked'] == true;
+
+        if (obj['mode'] is String) {
+          mode = obj['mode'] as String;
+        } else {
+          // fallback au cas où
+          if (tempLinked) {
+            mode = 'temp';
+          } else if (lightLinked) {
+            mode = 'light';
+          } else {
+            mode = 'manual';
+          }
+        }
+        break;
+      }
+    }
+
+    return RgbStatus(
+      lightLinked: lightLinked,
+      tempLinked: tempLinked,
+      mode: mode,
+    );
+  }
 
   ApiClient({
     required this.baseUrl,
