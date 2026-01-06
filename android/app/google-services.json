@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "737705953982",
+    "project_id": "ttgo-f2421",
+    "storage_bucket": "ttgo-f2421.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:737705953982:android:9ad7426da65b8defdcecef",
+        "android_client_info": {
+          "package_name": "com.example.ttgo_interface"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwnxNXLectPg9ks4jYmLnQB9Wxh43E610"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -10,10 +10,9 @@ class FirestoreService {
 
   /// Enregistre une mesure dans la collection "readings".
   Future<void> logReading(CurrentSensors data) async {
-    await _db.collection('readings').add({
+    await _db.collection('capteurs').add({
       'temperature': data.temperature,
       'light': data.light,
-      'ledIndicatorOn': data.ledIndicatorOn,
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
