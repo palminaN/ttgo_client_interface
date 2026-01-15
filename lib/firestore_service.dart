@@ -10,53 +10,74 @@ class FirestoreService {
 
   /// Enregistre une mesure dans la collection "readings".
   Future<void> logReading(CurrentSensors data) async {
-    await _db.collection('capteurs').add({
-      'temperature': data.temperature,
-      'light': data.light,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    try {
+      print('logReading: tentative d\'insertion...');
+      await _db.collection('readings').add({ //modif en readings au lieu de capteur
+        'temperature': data.temperature,
+        'light': data.light,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      print('logReading: insertion OK');
+    } catch (e, st) {
+      print('logReading: ERREUR -> $e');
+      print(st);
+    }
   }
+
 
   /// Statistiques simples calculées côté client
   /// (sur toutes les mesures ou les N dernières).
   Future<StatsResult> computeStats() async {
-    final query = await _db
-        .collection('readings')
-        .orderBy('timestamp', descending: true)
-        .limit(200) // évite de charger tout Firestore
-        .get();
+    try {
+      print('computeStats: récupération des données...');
+      final query = await _db
+          .collection('readings')
+          .orderBy('timestamp', descending: true)
+          .limit(200) // évite de charger tout Firestore
+          .get();
 
-    if (query.docs.isEmpty) {
+      print('computeStats: ${query.docs.length} documents lus');
+
+      if (query.docs.isEmpty) {
+        print('computeStats: aucun document trouvé');
+        return StatsResult.empty();
+      }
+
+      double sumTemp = 0;
+      double sumLight = 0;
+      int count = 0;
+      DateTime? lastTs;
+
+      for (final doc in query.docs) {
+        final data = doc.data();
+        final t = (data['temperature'] as num).toDouble();
+        final l = (data['light'] as num).toDouble();
+        sumTemp += t;
+        sumLight += l;
+        count++;
+
+        final ts = (data['timestamp'] as Timestamp?)?.toDate();
+        if (ts != null) {
+          lastTs ??= ts;
+          if (ts.isAfter(lastTs!)) lastTs = ts;
+        }
+      }
+
+      print('computeStats: OK, total=$count');
+
+      return StatsResult(
+        totalReadings: count,
+        avgTemperature: sumTemp / count,
+        avgLight: sumLight / count,
+        lastReading: lastTs,
+      );
+    } catch (e, st) {
+      print('computeStats: ERREUR -> $e');
+      print(st);
       return StatsResult.empty();
     }
-
-    double sumTemp = 0;
-    double sumLight = 0;
-    int count = 0;
-    DateTime? lastTs;
-
-    for (final doc in query.docs) {
-      final data = doc.data();
-      final t = (data['temperature'] as num).toDouble();
-      final l = (data['light'] as num).toDouble();
-      sumTemp += t;
-      sumLight += l;
-      count++;
-
-      final ts = (data['timestamp'] as Timestamp?)?.toDate();
-      if (ts != null) {
-        lastTs ??= ts;
-        if (ts.isAfter(lastTs!)) lastTs = ts;
-      }
-    }
-
-    return StatsResult(
-      totalReadings: count,
-      avgTemperature: sumTemp / count,
-      avgLight: sumLight / count,
-      lastReading: lastTs,
-    );
   }
+
 
   /// Liste des capteurs avec localisation (collection "sensors").
   /// Documents attendus :

@@ -32,7 +32,7 @@ class TTGODashboardApp extends StatelessWidget {
     final apiClient = ApiClient(
       // émulateur Android -> 10.0.2.2
       // téléphone physique -> IP de l'ESP32, ex: http://192.168.1.42/api
-      baseUrl: 'http://10.106.12.175/api',
+      baseUrl: 'http://10.246.119.175/api',
     );
 
     return MaterialApp(
@@ -126,18 +126,25 @@ class _SensorsPageState extends State<SensorsPage> {
   }
 
   void registerDB() async {
+    if (!mounted) return;
 
-    if (mounted) {
-      _future = widget.apiClient.fetchCurrentSensors().then((data) async {
-          await FirestoreService.instance.logReading(data);
-        _isFetching = false;
-        return data;
-      }).catchError((e) {
-        _isFetching = false;
-        throw e;
-      });
-    }
+    _future = widget.apiClient.fetchCurrentSensors().then((data) async {
+      try {
+        await FirestoreService.instance.logReading(data);
+      } catch (e, st) {
+        print('Erreur Firestore logReading: $e');
+        print(st);
+      }
+      _isFetching = false;
+      return data;
+    }).catchError((e, st) {
+      print('Erreur fetchCurrentSensors/registerDB: $e');
+      print(st);
+      _isFetching = false;
+      throw e;
+    });
   }
+
 
   @override
   void dispose() {
@@ -313,8 +320,28 @@ class LedControlPage extends StatefulWidget {
 
 class _LedControlPageState extends State<LedControlPage> {
   bool _rgbLightLinked = false;
-  bool _rgbTempLinked = true; // par défaut, la RGB est liée à la température
-  double _hue = 0; // 0..360 pour la roue de couleur
+  bool _rgbTempLinked  = false;
+  double _hue = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialRgbStatus();
+  }
+
+  Future<void> _loadInitialRgbStatus() async {
+    try {
+      final status = await widget.apiClient.fetchRgbStatus();
+      if (!mounted) return;
+
+      setState(() {
+        _rgbLightLinked = status.lightLinked;
+        _rgbTempLinked  = status.tempLinked;
+      });
+    } catch (e) {
+      // Si l'ESP est down ou autre, on ne bloque pas l'UI
+    }
+  }
 
   Future<void> _toggleBlue(bool value) async {
     setState(() {

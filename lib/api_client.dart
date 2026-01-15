@@ -183,30 +183,6 @@ class ApiClient {
     return (data['value'] as num).toDouble();
   }
 
-  /// Change la couleur de la LED RGB avec les routes actuelles :
-  /// 'r' -> PATCH /api/ledrgb/r
-  /// 'g' -> PATCH /api/ledrgb/g
-  /// 'b' -> PATCH /api/ledrgb/b
-  Future<void> setLedColorBasic(String color) async {
-    late final String path;
-    if (color == 'r') {
-      path = '/ledrgb/r';
-    } else if (color == 'g') {
-      path = '/ledrgb/g';
-    } else if (color == 'b') {
-      path = '/ledrgb/b';
-    } else {
-      throw ArgumentError('Couleur invalide: $color');
-    }
-
-    final uri = Uri.parse('$baseUrl$path');
-    final response = await _client.patch(uri);
-    if (response.statusCode != 200) {
-      throw Exception(
-          'Erreur changement couleur (${response.statusCode})');
-    }
-  }
-
   Future<void> setLedColorRgb(int r, int g, int b) async {
     final uri = Uri.parse('$baseUrl/ledrgb/color');
     final response = await _client.patch(
