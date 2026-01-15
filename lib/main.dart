@@ -85,6 +85,8 @@ class _MainScaffoldState extends State<MainScaffold> {
 // Onglet 1 – Capteurs
 //
 
+/*
+
 class SensorsPage extends StatefulWidget {
   final ApiClient apiClient;
 
@@ -303,7 +305,7 @@ class _TempColorPreview extends StatelessWidget {
     );
   }
 }
-
+*/
 
 //
 // Onglet 2 – LED & Couleurs
@@ -549,7 +551,7 @@ class _LedControlPageState extends State<LedControlPage> {
 //
 // Onglet 3 – Seuils lumière & chaud/froid
 //
-
+/*
 class ThresholdsPage extends StatefulWidget {
   final ApiClient apiClient;
 
@@ -699,7 +701,7 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
   }
 }
 
-
+*/
 
 //
 // Onglet 4 – Statistiques & localisation

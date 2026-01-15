@@ -10,8 +10,6 @@ class SensorsPage extends StatefulWidget {
   final ApiClient apiClient;
 
 
-
-
   const SensorsPage({super.key, required this.apiClient});
 
 
@@ -24,13 +22,15 @@ class _SensorsPageState extends State<SensorsPage> {
   final fs = FirestoreService.instance;
 
   Timer? _timer;
-  late Timer _timer_db;
   bool _isFetching = false;
   static const int intervalDB = 60;
 
   @override
   void initState() {
     super.initState();
+    Timer? _timer_db = Timer.periodic(const Duration(seconds: intervalDB), (timer) {
+      registerDB();
+    });
     _refresh();
 
     // Rafraîchit toutes les 1 seconde, mais seulement si on n'est pas déjà
@@ -42,27 +42,31 @@ class _SensorsPageState extends State<SensorsPage> {
     });
 
 
-    _timer_db = Timer.periodic(
-      const Duration(seconds: intervalDB),
-          (Timer timer) {
-        registerDB();
-      },
-    );
 
 
   }
 
   void registerDB() async {
+    if (!mounted || _isFetching) return;
 
-    if (mounted) {
-      _future = widget.apiClient.fetchCurrentSensors().then((data) async {
-        await fs.logReading(data);
-        _isFetching = false;
-        return data;
-      }).catchError((e) {
-        _isFetching = false;
-        throw e;
-      });
+    setState(() {
+      _isFetching = true;
+    });
+
+    try {
+      final data = await widget.apiClient.fetchCurrentSensors();
+
+      await fs.logReading(data);
+
+      print("Données enregistrées avec succès");
+    } catch (e) {
+      print("Erreur lors de registerDB : $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFetching = false;
+        });
+      }
     }
   }
 

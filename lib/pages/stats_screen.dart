@@ -59,8 +59,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           var minute = date.minute;
           var x = hour + (minute / 60);
 
-          luminosity.add(FlSpot(minute % 23,docSnapshot.get("light")));
-          temperature.add(FlSpot(minute % 23, docSnapshot.get("temperature")));
+          luminosity.add(FlSpot((minute % 23).toDouble(),(docSnapshot.get("light")).toDouble()));
+          temperature.add(FlSpot((minute % 23).toDouble(), (docSnapshot.get("temperature")).toDouble()));
         }
         setState(() {
           luminosityData = luminosity;
