@@ -12,7 +12,7 @@ class FirestoreService {
   Future<void> logReading(CurrentSensors data) async {
     try {
       print('logReading: tentative d\'insertion...');
-      await _db.collection('readings').add({ //modif en readings au lieu de capteur
+      await _db.collection('capteurs').add({ //modif en readings au lieu de capteur
         'temperature': data.temperature,
         'light': data.light,
         'timestamp': FieldValue.serverTimestamp(),
