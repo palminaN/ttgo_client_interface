@@ -58,7 +58,7 @@ class MainScaffold extends StatefulWidget {
 class _MainScaffoldState extends State<MainScaffold> {
   int _index = 0;
   final fs = FirestoreService.instance;
-  static const int intervalDB = 5;
+  static const int intervalDB = 60;
   bool _isFetching = false;
 
 
