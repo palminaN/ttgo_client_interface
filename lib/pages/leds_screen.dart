@@ -19,8 +19,6 @@ class _LedControlScreenState extends State<LedControlScreen> {
   // États des interrupteurs
   bool isRgbLedOn = false;
   bool isRedLedOn = true;
-  bool syncWithLight = false;
-  bool syncWithTemp = false;
 
   bool _rgbLightLinked = false;
   bool _rgbTempLinked = true; // par défaut, la RGB est liée à la température
@@ -92,6 +90,7 @@ class _LedControlScreenState extends State<LedControlScreen> {
       _rgbTempLinked = value;
       if (value) {
         _rgbLightLinked = false; // exclusif : mode température => on coupe mode lumière
+        isRgbLedOn = false;
       }
     });
     try {
@@ -118,6 +117,7 @@ class _LedControlScreenState extends State<LedControlScreen> {
     setState(() {
       _rgbLightLinked = false;
       _rgbTempLinked = false;
+      isRgbLedOn = true;
     });
 
     try {
@@ -348,10 +348,10 @@ class _LedControlScreenState extends State<LedControlScreen> {
                   // Lumière
                   _buildSyncSwitchItem(
                     label: 'lumiere',
-                    value: syncWithLight,
+                    value: _rgbLightLinked,
                     onChanged: (bool value) {
                       setState(() {
-                        syncWithLight = value;
+                        _toggleBlue(value); // appelle setRGBLightMode() dans l'ApiClient
                       });
                     },
                   ),
@@ -359,10 +359,10 @@ class _LedControlScreenState extends State<LedControlScreen> {
                   // Température
                   _buildSyncSwitchItem(
                     label: 'temperature',
-                    value: syncWithTemp,
+                    value: _rgbTempLinked,
                     onChanged: (bool value) {
                       setState(() {
-                        syncWithTemp = value;
+                        _toggleTemp(value); // appelle setRGBTempMode() dans l'ApiClient
                       });
                     },
                   ),
