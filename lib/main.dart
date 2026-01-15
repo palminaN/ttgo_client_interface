@@ -57,6 +57,43 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> {
   int _index = 0;
+  final fs = FirestoreService.instance;
+  static const int intervalDB = 5;
+  bool _isFetching = false;
+
+
+  void registerDB() async {
+    if (!mounted || _isFetching) return;
+
+    setState(() {
+      _isFetching = true;
+    });
+
+    try {
+      final data = await widget.apiClient.fetchCurrentSensors();
+      await fs.logReading(data);
+
+      print("Données enregistrées avec succès");
+    } catch (e) {
+      print("Erreur lors de registerDB : $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFetching = false;
+        });
+      }
+    }
+  }
+
+
+  @override
+  void initState() {
+    super.initState();
+    Timer? _timer_db = Timer.periodic(const Duration(seconds: intervalDB), (timer) {
+      registerDB();
+    });
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -706,7 +743,7 @@ class _ThresholdsPageState extends State<ThresholdsPage> {
 //
 // Onglet 4 – Statistiques & localisation
 //
-
+/*
 class StatsPage extends StatelessWidget {
   final ApiClient apiClient;
 
@@ -819,3 +856,4 @@ class StatsPage extends StatelessWidget {
     );
   }
 }
+ */
