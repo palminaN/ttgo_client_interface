@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 import '../api_client.dart';
+import '../firestore_service.dart';
 
 
 class LedControlScreen extends StatefulWidget {
@@ -15,6 +18,8 @@ class LedControlScreen extends StatefulWidget {
 
 class _LedControlScreenState extends State<LedControlScreen> {
   Color currentColor = const Color(0xFF21AAF9);
+  late Future<CurrentSensors> _future;
+
 
   // États des interrupteurs
   bool isRgbLedOn = false;
@@ -26,6 +31,8 @@ class _LedControlScreenState extends State<LedControlScreen> {
   @override
   void initState() {
     super.initState();
+    _future = widget.apiClient.fetchCurrentSensors();
+
     _loadInitialRgbStatus();
   }
 
@@ -195,6 +202,24 @@ class _LedControlScreenState extends State<LedControlScreen> {
 
   @override
   Widget build(BuildContext context) {
+
+    return FutureBuilder<CurrentSensors>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Text('Erreur: ${snapshot.error}'),
+              ],
+            );
+          }
+
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -377,5 +402,5 @@ class _LedControlScreenState extends State<LedControlScreen> {
       ),
 
     );
-  }
-}
+  });
+}}
