@@ -60,7 +60,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   final fs = FirestoreService.instance;
   static const int intervalDB = 60;
   bool _isFetching = false;
-
+  Timer? _timer_db;
 
   void registerDB() async {
     if (!mounted || _isFetching) return;
@@ -89,9 +89,15 @@ class _MainScaffoldState extends State<MainScaffold> {
   @override
   void initState() {
     super.initState();
-    Timer? _timer_db = Timer.periodic(const Duration(seconds: intervalDB), (timer) {
+    _timer_db = Timer.periodic(const Duration(seconds: intervalDB), (timer) {
       registerDB();
     });
+  }
+
+  @override
+  void dispose() {
+    _timer_db?.cancel();
+    super.dispose();
   }
 
 
